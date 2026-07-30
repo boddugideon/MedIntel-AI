@@ -1,0 +1,11 @@
+streamlit
+pandas
+numpy
+matplotlib
+python-dotenv
+groq
+mysql-connector-python
+pdfplumber
+pymupdf
+Pillow
+scikit-learn
