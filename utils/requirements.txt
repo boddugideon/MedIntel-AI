@@ -1,0 +1,11 @@
+streamlit
+groq
+mysql-connector-python
+reportlab
+matplotlib
+pandas
+numpy
+pdfplumber
+PyMuPDF
+Pillow
+python-dotenv
