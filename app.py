@@ -3,9 +3,12 @@ import traceback
 import hashlib
 import streamlit as st
 import matplotlib.pyplot as plt
+import pytesseract
+from PIL import Image, ImageOps
 
 from utils.patient import patient_information
 from utils.pdf_reader import extract_pdf_text
+from utils.ocr import extract_text_with_ocr
 from utils.preprocess import clean_text
 from utils.analyzer import extract_parameters
 from utils.charts import create_bar_chart, create_pie_chart
@@ -25,11 +28,28 @@ from llm.groq_service import analyze_report
 # Medical Normal Ranges
 # =====================================================
 NORMAL_RANGES = {
-    "Hemoglobin": (13.0, 17.0),
+    # Complete Blood Count (CBC)
+    "Hemoglobin": (12.0, 17.0),
+    "RBC": (4.0, 6.1),
+    "HCT": (36.0, 55.0),
+    "MCV": (80.0, 100.0),
+    "MCH": (27.0, 32.0),
+    "MCHC": (32.0, 36.0),
     "WBC": (4000.0, 11000.0),
-    "RBC": (4.5, 6.0),
-    "Platelets": (150000.0, 450000.0),
-    "Blood Sugar": (70.0, 126.0)
+    "Platelets": (150000.0, 400000.0),
+
+    # Differential count
+    "Neutrophils": (40.0, 70.0),
+    "Lymphocytes": (20.0, 45.0),
+    "Monocytes": (2.0, 10.0),
+    "Eosinophils": (1.0, 6.0),
+    "Basophils": (0.0, 2.0),
+
+    # Inflammation marker
+    "ESR": (0.0, 20.0),
+
+    # Blood sugar
+    "Blood Sugar": (70.0, 126.0),
 }
 
 
@@ -215,46 +235,85 @@ def predict_disease_safe(parameters):
 # =====================================================
 # Risk Factor Detection
 # =====================================================
+# =====================================================
+# Advanced Risk Factor Detection
+# =====================================================
 def detect_risk_factors_safe(range_results):
 
     risks = []
 
-    hemoglobin_status = range_results.get(
-        "Hemoglobin",
-        {}
-    ).get("Status")
+    if not isinstance(range_results, dict):
+        return risks
 
-    blood_sugar_status = range_results.get(
-        "Blood Sugar",
-        {}
-    ).get("Status")
+    def status(parameter):
+        return range_results.get(parameter, {}).get("Status")
 
-    wbc_status = range_results.get(
-        "WBC",
-        {}
-    ).get("Status")
-
-    platelets_status = range_results.get(
-        "Platelets",
-        {}
-    ).get("Status")
-
-    if hemoglobin_status == "Low":
-        risks.append("🩸 Possible Anemia")
-
-    if blood_sugar_status == "High":
-        risks.append("🍬 Possible Diabetes")
-
-    if wbc_status == "High":
-        risks.append("🦠 Possible Infection")
-
-    if platelets_status == "Low":
+    # Possible iron-deficiency pattern
+    if (
+        status("Hemoglobin") == "Low"
+        or (
+            status("MCV") == "Low"
+            and status("MCH") == "Low"
+        )
+    ):
         risks.append(
-            "🩹 Possible Low Platelet Condition"
+            "🩸 Possible iron-deficiency pattern: low Hemoglobin "
+            "or low MCV together with low MCH."
+        )
+
+    # Possible bacterial infection pattern
+    if (
+        status("WBC") == "High"
+        and status("Neutrophils") == "High"
+    ):
+        risks.append(
+            "🦠 Possible bacterial infection pattern: "
+            "high WBC and high Neutrophils."
+        )
+
+    # Possible viral pattern
+    if (
+        status("Neutrophils") == "Low"
+        and status("Lymphocytes") == "High"
+    ):
+        risks.append(
+            "🦠 Possible viral pattern: "
+            "low Neutrophils and high Lymphocytes."
+        )
+
+    # Elevated ESR
+    if status("ESR") == "High":
+        risks.append(
+            "🔥 Elevated ESR detected. This may be associated with "
+            "inflammation or infection and needs clinical correlation."
+        )
+
+    # Low neutrophils
+    if status("Neutrophils") == "Low":
+        risks.append(
+            "🧪 Low Neutrophils detected."
+        )
+
+    # Low platelets
+    if status("Platelets") == "Low":
+        risks.append(
+            "🩹 Low Platelet count detected."
+        )
+
+    # High blood sugar
+    if status("Blood Sugar") == "High":
+        risks.append(
+            "🍬 High Blood Sugar detected."
+        )
+
+    # High eosinophils
+    if status("Eosinophils") == "High":
+        risks.append(
+            "🌿 High Eosinophils detected, which may be associated "
+            "with allergy or parasitic infection."
         )
 
     return risks
-
 
 # =====================================================
 # Specialist Suggestion
@@ -364,6 +423,53 @@ def prepare_chart_range_results(range_results):
 
     return chart_results
 
+
+
+# =====================================================
+# Image OCR Helper
+# =====================================================
+def extract_text_from_report_image(uploaded_image):
+    """
+    Extract text from JPG, JPEG or PNG medical-report images.
+
+    The image is corrected for phone orientation, converted to grayscale,
+    enhanced for contrast and enlarged when needed before OCR.
+    """
+
+    if uploaded_image is None:
+        return ""
+
+    try:
+        uploaded_image.seek(0)
+        image = Image.open(uploaded_image)
+
+        # Correct orientation from phone-camera EXIF metadata.
+        image = ImageOps.exif_transpose(image)
+
+        # OCR works more reliably on a clean grayscale image.
+        image = image.convert("L")
+        image = ImageOps.autocontrast(image)
+
+        # Enlarge small phone images to improve OCR accuracy.
+        minimum_width = 1800
+        if image.width < minimum_width:
+            scale = minimum_width / image.width
+            resized_height = max(1, int(image.height * scale))
+            image = image.resize(
+                (minimum_width, resized_height),
+                Image.Resampling.LANCZOS
+            )
+
+        return pytesseract.image_to_string(
+            image,
+            lang="eng",
+            config="--oem 3 --psm 6"
+        ).strip()
+
+    except Exception as error:
+        raise RuntimeError(
+            f"Image OCR extraction failed: {error}"
+        ) from error
 
 
 # =====================================================
@@ -1390,13 +1496,43 @@ elif page == "📤 New Analysis":
 
     st.write("")
     with st.container(border=True):
-        st.markdown('<div class="section-title">📤 Upload Medical Report</div>', unsafe_allow_html=True)
-        st.caption("Supported format: text-based PDF medical reports")
-        uploaded_file = st.file_uploader(
-            "Choose a medical report",
-            type=["pdf"],
-            label_visibility="collapsed"
+        st.markdown(
+            '<div class="section-title">📤 Upload Medical Report</div>',
+            unsafe_allow_html=True
         )
+        st.caption(
+            "Upload a PDF, choose a report photo from your phone gallery, "
+            "or capture a new photo using the camera."
+        )
+
+        upload_tab, camera_tab = st.tabs([
+            "📁 Gallery / Files",
+            "📷 Camera"
+        ])
+
+        with upload_tab:
+            gallery_file = st.file_uploader(
+                "Choose a PDF or report image",
+                type=["pdf", "png", "jpg", "jpeg"],
+                help=(
+                    "On a phone, tap Browse files to select a PDF or "
+                    "report image from Gallery, Photos or Files."
+                ),
+                key="medical_report_uploader"
+            )
+
+        with camera_tab:
+            camera_file = st.camera_input(
+                "Capture the complete medical report",
+                help=(
+                    "Keep the report flat, use good lighting and make sure "
+                    "all text is clearly visible."
+                ),
+                key="medical_report_camera"
+            )
+
+        # A gallery/file selection takes priority when both are present.
+        uploaded_file = gallery_file if gallery_file is not None else camera_file
 
     if uploaded_file is not None:
         st.success("✅ Report uploaded successfully")
@@ -1406,11 +1542,50 @@ elif page == "📤 New Analysis":
         file_col3.metric("File Size", f"{uploaded_file.size / 1024:.1f} KB")
 
         try:
-            extracted_text = extract_pdf_text(uploaded_file)
+            file_type = (uploaded_file.type or "").lower()
+            file_name = (uploaded_file.name or "").lower()
+
+            is_pdf = (
+                file_type == "application/pdf"
+                or file_name.endswith(".pdf")
+            )
+            is_image = (
+                file_type.startswith("image/")
+                or file_name.endswith((".png", ".jpg", ".jpeg"))
+            )
+
+            if is_pdf:
+                extracted_text = extract_pdf_text(uploaded_file)
+
+                # Use OCR only when normal PDF text extraction fails.
+                if not extracted_text or not extracted_text.strip():
+                    with st.spinner(
+                        "Scanned PDF detected. Extracting text with OCR..."
+                    ):
+                        uploaded_file.seek(0)
+                        extracted_text = extract_text_with_ocr(uploaded_file)
+
+            elif is_image:
+                with st.spinner(
+                    "Report image detected. Extracting text with OCR..."
+                ):
+                    extracted_text = extract_text_from_report_image(
+                        uploaded_file
+                    )
+
+            else:
+                extracted_text = ""
+                st.warning(
+                    "Unsupported file type. Upload PDF, PNG, JPG or JPEG."
+                )
+
             cleaned_text = clean_text(extracted_text)
 
             if not cleaned_text:
-                st.warning("No readable text was found in the uploaded PDF.")
+                st.warning(
+                    "No readable text was found even after OCR. "
+                    "Please upload or capture a clearer report with good lighting."
+                )
             else:
                 with st.expander("📄 View Extracted Report Text"):
                     st.text_area("Report Text", cleaned_text, height=260, label_visibility="collapsed")
