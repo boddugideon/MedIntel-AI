@@ -10,3 +10,4 @@ pymupdf
 Pillow
 scikit-learn
 reportlab
+pytesseract

@@ -124,12 +124,12 @@ def get_patient_report_by_id(report_id):
 # =====================================================
 
 def create_user(full_name, username, email, password):
+    connection = get_database_connection()
+    if connection is None:
+        return False
 
-    connection = None
     cursor = None
-
     try:
-        connection = get_database_connection()
         cursor = connection.cursor()
 
         query = """
@@ -148,8 +148,8 @@ def create_user(full_name, username, email, password):
                 full_name,
                 username,
                 email,
-                password
-            )
+                password,
+            ),
         )
 
         connection.commit()
@@ -163,7 +163,7 @@ def create_user(full_name, username, email, password):
         if cursor:
             cursor.close()
 
-        if connection:
+        if connection and connection.is_connected():
             connection.close()
 
 

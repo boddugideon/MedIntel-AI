@@ -1,101 +1,202 @@
 import re
 
 
-NORMAL_RANGES = {
-    "Hemoglobin": (13.0, 17.0),
-    "WBC": (4000.0, 11000.0),
-    "RBC": (4.5, 6.0),
-    "Platelets": (150000.0, 450000.0),
-    "Blood Sugar": (70.0, 126.0)
-}
+def _clean_number(value):
+    """
+    Convert OCR-style numeric text into a float.
 
-
-def convert_to_float(value):
-    """Safely convert extracted text into a number."""
-
+    Examples:
+    8,300 -> 8300
+    04 -> 4
+    Ol -> 1
+    25.7 -> 25.7
+    """
     if value is None:
         return None
 
-    try:
-        cleaned_value = str(value).replace(",", "").strip()
-        return float(cleaned_value)
+    cleaned = str(value).strip()
 
-    except (TypeError, ValueError):
+    # Fix common OCR number mistakes
+    cleaned = cleaned.replace(",", "")
+    cleaned = cleaned.replace("O", "0")
+    cleaned = cleaned.replace("o", "0")
+    cleaned = cleaned.replace("I", "1")
+    cleaned = cleaned.replace("l", "1")
+    cleaned = cleaned.replace("|", "1")
+
+    match = re.search(r"-?\d+(?:\.\d+)?", cleaned)
+
+    if not match:
+        return None
+
+    try:
+        return float(match.group())
+    except ValueError:
         return None
 
 
-# -------------------------------------
-# Extract Medical Parameters
-# -------------------------------------
-def extract_parameters(report_text):
-
-    parameters = {}
-
-    patterns = {
-        "Hemoglobin": r"Hemoglobin\s*[:\-]?\s*([\d.]+)",
-        "WBC": r"WBC\s*[:\-]?\s*([\d,]+)",
-        "RBC": r"RBC\s*[:\-]?\s*([\d.]+)",
-        "Platelets": r"Platelets\s*[:\-]?\s*([\d,]+)",
-        "Blood Sugar": r"Blood Sugar\s*[:\-]?\s*([\d.]+)"
-    }
-
-    for parameter, pattern in patterns.items():
-
+def _find_value(text, patterns):
+    """
+    Try multiple regular-expression patterns and return
+    the first valid numeric value found.
+    """
+    for pattern in patterns:
         match = re.search(
             pattern,
-            report_text,
-            re.IGNORECASE
+            text,
+            flags=re.IGNORECASE | re.MULTILINE,
         )
 
         if match:
+            value = _clean_number(match.group(1))
 
-            numeric_value = convert_to_float(match.group(1))
+            if value is not None:
+                return value
 
-            if numeric_value is not None:
-                parameters[parameter] = numeric_value
-
-    return parameters
+    return None
 
 
-# -------------------------------------
-# Check Normal Ranges
-# -------------------------------------
-def check_normal_ranges(parameters):
+def extract_parameters(text):
+    """
+    Extract medical parameters from normal text PDFs and
+    OCR-generated text from scanned blood reports.
+    """
+    if not text:
+        return {}
 
-    results = {}
+    # Improve OCR text consistency
+    cleaned_text = str(text)
+    cleaned_text = cleaned_text.replace("–", "-")
+    cleaned_text = cleaned_text.replace("—", "-")
+    cleaned_text = cleaned_text.replace("\t", " ")
 
-    for parameter, value in parameters.items():
+    parameters = {}
 
-        numeric_value = convert_to_float(value)
+    hemoglobin = _find_value(
+        cleaned_text,
+        [
+            r"\bHEMOGLOBIN\b\s*[:\-]?\s*(\d+(?:\.\d+)?)",
+            r"\bHAEMOGLOBIN\b\s*[:\-]?\s*(\d+(?:\.\d+)?)",
+            r"\bHB\b\s*[:\-]?\s*(\d+(?:\.\d+)?)",
+        ],
+    )
 
-        if numeric_value is None:
-            results[parameter] = {
-                "Value": value,
-                "Status": "Invalid"
-            }
-            continue
+    rbc = _find_value(
+        cleaned_text,
+        [
+            r"\bRBC\s*COUNT\b\s*[:\-]?\s*(\d+(?:\.\d+)?)",
+            r"\bRBC\b\s*[:\-]?\s*(\d+(?:\.\d+)?)",
+        ],
+    )
 
-        if parameter not in NORMAL_RANGES:
-            results[parameter] = {
-                "Value": numeric_value,
-                "Status": "Range not available"
-            }
-            continue
+    hct = _find_value(
+        cleaned_text,
+        [
+            r"\bHCT\b\s*[:\-]?\s*(\d+(?:\.\d+)?)",
+            r"\bPCV\b\s*[:\-]?\s*(\d+(?:\.\d+)?)",
+        ],
+    )
 
-        minimum, maximum = NORMAL_RANGES[parameter]
+    mcv = _find_value(
+        cleaned_text,
+        [r"\bMCV\b\s*[:\-]?\s*(\d+(?:\.\d+)?)"],
+    )
 
-        if numeric_value < minimum:
-            status = "Low"
+    mch = _find_value(
+        cleaned_text,
+        [r"\bMCH\b(?!C)\s*[:\-]?\s*(\d+(?:\.\d+)?)"],
+    )
 
-        elif numeric_value > maximum:
-            status = "High"
+    # OCR may read 25.7 as 257
+    if mch is not None and 100 <= mch <= 999:
+        mch = mch / 10
 
-        else:
-            status = "Normal"
+    mchc = _find_value(
+        cleaned_text,
+        [r"\bMCHC\b\s*[:\-]?\s*(\d+(?:\.\d+)?)"],
+    )
 
-        results[parameter] = {
-            "Value": numeric_value,
-            "Status": status
-        }
+    wbc = _find_value(
+        cleaned_text,
+        [
+            r"\bTWBC\s*COUNT\b\s*[:\-]?\s*([\d,]+(?:\.\d+)?)",
+            r"\bTOTAL\s*WBC\s*COUNT\b\s*[:\-]?\s*([\d,]+(?:\.\d+)?)",
+            r"\bWBC\s*COUNT\b\s*[:\-]?\s*([\d,]+(?:\.\d+)?)",
+            r"\bWBC\b\s*[:\-]?\s*([\d,]+(?:\.\d+)?)",
+        ],
+    )
 
-    return results
+    platelets = _find_value(
+        cleaned_text,
+        [
+            r"\bPLATELET\s*COUNT\b\s*[:\-]?\s*(\d+(?:\.\d+)?)",
+            r"\bPLATELETS?\b\s*[:\-]?\s*(\d+(?:\.\d+)?)",
+        ],
+    )
+
+    # Convert lakh-based platelet value:
+    # 3.53 lakhs/cu.mm -> 353000 cells/cu.mm
+    platelet_line = re.search(
+        r"\bPLATELET\s*COUNT\b[^\n]*",
+        cleaned_text,
+        flags=re.IGNORECASE,
+    )
+
+    if (
+        platelets is not None
+        and platelet_line
+        and re.search(
+            r"lakh|lakhs|takhs",
+            platelet_line.group(),
+            flags=re.IGNORECASE,
+        )
+    ):
+        platelets = platelets * 100000
+
+    esr = _find_value(
+        cleaned_text,
+        [r"\bESR\b\s*[:\-]?\s*(\d+(?:\.\d+)?)"],
+    )
+
+    neutrophils = _find_value(
+        cleaned_text,
+        [r"\bNEUTROPHILS?\b\s*[:\-]?\s*([0-9OolI|]+(?:\.\d+)?)"],
+    )
+
+    lymphocytes = _find_value(
+        cleaned_text,
+        [r"\bLYMPHOCYTES?\b\s*[:\-]?\s*([0-9OolI|]+(?:\.\d+)?)"],
+    )
+
+    monocytes = _find_value(
+        cleaned_text,
+        [r"\bMONOCYTES?\b\s*[:\-]?\s*([0-9OolI|]+(?:\.\d+)?)"],
+    )
+
+    eosinophils = _find_value(
+        cleaned_text,
+        [r"\bEOSINOPHILS?\b\s*[:\-]?\s*([0-9OolI|]+(?:\.\d+)?)"],
+    )
+
+    extracted = {
+        "Hemoglobin": hemoglobin,
+        "RBC": rbc,
+        "HCT": hct,
+        "MCV": mcv,
+        "MCH": mch,
+        "MCHC": mchc,
+        "WBC": wbc,
+        "Platelets": platelets,
+        "ESR": esr,
+        "Neutrophils": neutrophils,
+        "Lymphocytes": lymphocytes,
+        "Monocytes": monocytes,
+        "Eosinophils": eosinophils,
+    }
+
+    # Remove parameters that OCR could not read
+    return {
+        name: value
+        for name, value in extracted.items()
+        if value is not None
+    }
