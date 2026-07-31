@@ -378,7 +378,7 @@ st.set_page_config(
     page_title="MedIntel AI",
     page_icon="🩺",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="auto"
 )
 # ==========================================
 # Login Session Setup
@@ -601,6 +601,278 @@ div[data-testid="stAlert"] { border-radius: 12px; }
     border-radius: 12px;
     color: #315B69;
     font-size: .9rem;
+}
+
+
+/* =====================================================
+   Responsive layout for tablets and mobile phones
+   ===================================================== */
+html, body, [data-testid="stAppViewContainer"], .stApp {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+img, svg, canvas {
+    max-width: 100% !important;
+    height: auto;
+}
+
+[data-testid="stDataFrame"],
+[data-testid="stTable"],
+[data-testid="stPlotlyChart"],
+[data-testid="stImage"],
+[data-testid="stPyplotGlobalUse"] {
+    max-width: 100% !important;
+    overflow-x: auto;
+}
+
+/* Tablet */
+@media only screen and (max-width: 1024px) {
+    .block-container {
+        max-width: 100% !important;
+        padding-top: 1rem !important;
+        padding-left: 1.25rem !important;
+        padding-right: 1.25rem !important;
+        padding-bottom: 2rem !important;
+    }
+
+    .hero {
+        padding: 24px 24px !important;
+        border-radius: 18px !important;
+    }
+
+    .hero h1 {
+        font-size: 1.9rem !important;
+    }
+
+    .hero-date {
+        min-width: 160px !important;
+    }
+
+    .stat-card {
+        min-height: 116px !important;
+        padding: 17px !important;
+    }
+}
+
+/* Mobile */
+@media only screen and (max-width: 768px) {
+    .block-container {
+        width: 100% !important;
+        max-width: 100% !important;
+        padding-top: 0.75rem !important;
+        padding-left: 0.75rem !important;
+        padding-right: 0.75rem !important;
+        padding-bottom: 1.5rem !important;
+    }
+
+    /* Stack Streamlit columns vertically */
+    div[data-testid="stHorizontalBlock"] {
+        flex-wrap: wrap !important;
+        gap: 0.75rem !important;
+    }
+
+    div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
+        flex: 1 1 100% !important;
+        width: 100% !important;
+        min-width: 100% !important;
+    }
+
+    /* Hero section */
+    .hero {
+        padding: 20px 18px !important;
+        margin-bottom: 16px !important;
+        border-radius: 16px !important;
+    }
+
+    .hero-grid {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 14px !important;
+    }
+
+    .hero h1 {
+        font-size: 1.65rem !important;
+        line-height: 1.2 !important;
+    }
+
+    .hero p {
+        font-size: 0.92rem !important;
+        line-height: 1.5 !important;
+    }
+
+    .hero-date {
+        width: 100% !important;
+        min-width: 0 !important;
+        text-align: left !important;
+        padding: 10px 12px !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Authentication */
+    .auth-heading {
+        padding: 8px 4px 10px !important;
+    }
+
+    .auth-heading h1 {
+        font-size: 1.75rem !important;
+    }
+
+    .auth-heading h3 {
+        font-size: 1.05rem !important;
+        line-height: 1.35 !important;
+    }
+
+    .auth-heading p {
+        font-size: 0.88rem !important;
+    }
+
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 5px !important;
+        border-radius: 14px !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Radio buttons can wrap instead of overflowing */
+    div[role="radiogroup"] {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 0.35rem 0.65rem !important;
+    }
+
+    div[role="radiogroup"] label {
+        margin-right: 0 !important;
+    }
+
+    /* Cards */
+    .stat-card,
+    .quick-card,
+    .patient-card,
+    .sidebar-profile {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .stat-card {
+        min-height: auto !important;
+        padding: 16px !important;
+    }
+
+    .stat-card .value {
+        font-size: 1.7rem !important;
+    }
+
+    .quick-card {
+        min-height: auto !important;
+        padding: 14px !important;
+    }
+
+    .patient-card {
+        padding: 15px !important;
+    }
+
+    .section-title {
+        font-size: 1.18rem !important;
+        line-height: 1.35 !important;
+    }
+
+    /* Inputs and buttons */
+    .stButton > button,
+    .stDownloadButton > button,
+    button[kind="primary"],
+    button[kind="secondary"] {
+        width: 100% !important;
+        min-height: 44px !important;
+        white-space: normal !important;
+    }
+
+    input,
+    textarea,
+    [data-baseweb="select"] > div {
+        font-size: 16px !important;
+    }
+
+    div[data-testid="stFileUploader"] {
+        padding: 8px !important;
+    }
+
+    div[data-testid="stMetric"] {
+        padding: 14px !important;
+        min-height: auto !important;
+    }
+
+    div[data-testid="stMetricValue"] {
+        font-size: 1.55rem !important;
+    }
+
+    /* Tabs remain usable on narrow screens */
+    button[data-baseweb="tab"] {
+        white-space: nowrap !important;
+        padding-left: 0.75rem !important;
+        padding-right: 0.75rem !important;
+        font-size: 0.88rem !important;
+    }
+
+    div[data-baseweb="tab-list"] {
+        overflow-x: auto !important;
+        scrollbar-width: thin;
+    }
+
+    /* Tables and charts */
+    div[data-testid="stDataFrame"],
+    div[data-testid="stTable"] {
+        overflow-x: auto !important;
+        border-radius: 10px !important;
+    }
+
+    /* Sidebar opens as an overlay and uses a sensible width */
+    section[data-testid="stSidebar"] {
+        min-width: 270px !important;
+        max-width: 82vw !important;
+    }
+
+    section[data-testid="stSidebar"] > div {
+        width: 100% !important;
+    }
+
+    .footer-note {
+        font-size: 0.76rem !important;
+        padding: 22px 4px 6px !important;
+    }
+}
+
+/* Small phones */
+@media only screen and (max-width: 480px) {
+    .block-container {
+        padding-left: 0.55rem !important;
+        padding-right: 0.55rem !important;
+    }
+
+    .hero {
+        padding: 17px 15px !important;
+    }
+
+    .hero h1 {
+        font-size: 1.45rem !important;
+    }
+
+    .auth-heading h1 {
+        font-size: 1.55rem !important;
+    }
+
+    .stat-card .label,
+    .stat-card .hint,
+    .quick-card,
+    .patient-card p {
+        font-size: 0.85rem !important;
+    }
+
+    .patient-card h4 {
+        font-size: 1rem !important;
+    }
 }
 
 </style>
