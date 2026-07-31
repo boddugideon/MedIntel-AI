@@ -735,15 +735,50 @@ img, svg, canvas {
         box-sizing: border-box !important;
     }
 
-    /* Radio buttons can wrap instead of overflowing */
-    div[role="radiogroup"] {
-        display: flex !important;
-        flex-wrap: wrap !important;
-        gap: 0.35rem 0.65rem !important;
+    /* Mobile authentication navigation: show full Login / Sign Up / Forgot Password names */
+    div[data-testid="stRadio"] {
+        width: 100% !important;
     }
 
-    div[role="radiogroup"] label {
-        margin-right: 0 !important;
+    div[data-testid="stRadio"] div[role="radiogroup"] {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        width: 100% !important;
+        gap: 0.55rem !important;
+    }
+
+    div[data-testid="stRadio"] div[role="radiogroup"] > label {
+        display: flex !important;
+        width: 100% !important;
+        min-height: 44px !important;
+        margin: 0 !important;
+        padding: 0.65rem 0.8rem !important;
+        align-items: center !important;
+        border: 1px solid #CBE0E8 !important;
+        border-radius: 10px !important;
+        background: #F8FCFE !important;
+        box-sizing: border-box !important;
+        overflow: visible !important;
+    }
+
+    div[data-testid="stRadio"] div[role="radiogroup"] > label p {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        width: auto !important;
+        max-width: none !important;
+        margin: 0 0 0 0.35rem !important;
+        color: #18323F !important;
+        font-size: 0.94rem !important;
+        line-height: 1.25 !important;
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+    }
+
+    div[data-testid="stRadio"] div[role="radiogroup"] > label[data-checked="true"] {
+        border-color: #167D9A !important;
+        background: #E8F6F8 !important;
     }
 
     /* Cards */
@@ -859,8 +894,24 @@ img, svg, canvas {
         font-size: 1.45rem !important;
     }
 
+    .auth-heading {
+        display: block !important;
+        width: 100% !important;
+        text-align: center !important;
+    }
+
     .auth-heading h1 {
+        display: block !important;
+        visibility: visible !important;
         font-size: 1.55rem !important;
+        line-height: 1.2 !important;
+        margin: 0 0 0.35rem !important;
+    }
+
+    .auth-heading h3,
+    .auth-heading p {
+        display: block !important;
+        visibility: visible !important;
     }
 
     .stat-card .label,
