@@ -1,10 +1,35 @@
 from utils.pdf_generator import generate_patient_pdf
 import traceback
 import hashlib
+import platform
+import shutil
 import streamlit as st
 import matplotlib.pyplot as plt
 import pytesseract
 from PIL import Image, ImageOps
+from pathlib import Path
+
+# =====================================================
+# Cross-platform Tesseract Configuration
+# =====================================================
+# utils.ocr may configure a Windows-only path when imported.
+# Configure it again here so gallery/camera OCR works on both
+# Windows and Streamlit Cloud (Linux).
+if platform.system() == "Windows":
+    windows_tesseract = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+
+    if Path(windows_tesseract).exists():
+        pytesseract.pytesseract.tesseract_cmd = windows_tesseract
+    else:
+        detected_tesseract = shutil.which("tesseract")
+        if detected_tesseract:
+            pytesseract.pytesseract.tesseract_cmd = detected_tesseract
+else:
+    # Streamlit Cloud installs this executable through packages.txt.
+    detected_tesseract = shutil.which("tesseract")
+    pytesseract.pytesseract.tesseract_cmd = (
+        detected_tesseract if detected_tesseract else "tesseract"
+    )
 
 from utils.patient import patient_information
 from utils.pdf_reader import extract_pdf_text

@@ -1,17 +1,35 @@
 from io import BytesIO
+from pathlib import Path
 import platform
+import shutil
 
 import fitz
 import pytesseract
-from PIL import Image
+from PIL import Image, ImageOps
 
 
-# Use the Windows Tesseract path only on your local Windows computer.
-# On Streamlit Cloud/Linux, Tesseract is found automatically from packages.txt.
-if platform.system() == "Windows":
-    pytesseract.pytesseract.tesseract_cmd = (
-        r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-    )
+def configure_tesseract():
+    """
+    Configure Tesseract for Windows and Streamlit Cloud/Linux.
+    """
+    if platform.system() == "Windows":
+        windows_path = Path(
+            r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+        )
+
+        if windows_path.exists():
+            pytesseract.pytesseract.tesseract_cmd = str(windows_path)
+            return
+
+    detected_path = shutil.which("tesseract")
+
+    if detected_path:
+        pytesseract.pytesseract.tesseract_cmd = detected_path
+    else:
+        pytesseract.pytesseract.tesseract_cmd = "tesseract"
+
+
+configure_tesseract()
 
 
 def extract_text_with_ocr(uploaded_file):
@@ -19,7 +37,6 @@ def extract_text_with_ocr(uploaded_file):
     Extract text from scanned or image-based PDF files using OCR.
     Returns extracted text as a string.
     """
-
     pdf_document = None
 
     try:
@@ -28,7 +45,7 @@ def extract_text_with_ocr(uploaded_file):
 
         pdf_document = fitz.open(
             stream=pdf_bytes,
-            filetype="pdf"
+            filetype="pdf",
         )
 
         extracted_pages = []
@@ -37,17 +54,22 @@ def extract_text_with_ocr(uploaded_file):
             page = pdf_document.load_page(page_number)
 
             pixmap = page.get_pixmap(
-                matrix=fitz.Matrix(2, 2),
-                alpha=False
+                matrix=fitz.Matrix(2.5, 2.5),
+                alpha=False,
             )
 
             image = Image.open(
                 BytesIO(pixmap.tobytes("png"))
             )
 
+            image = ImageOps.exif_transpose(image)
+            image = image.convert("L")
+            image = ImageOps.autocontrast(image)
+
             page_text = pytesseract.image_to_string(
                 image,
-                lang="eng"
+                lang="eng",
+                config="--oem 3 --psm 6",
             )
 
             if page_text.strip():
